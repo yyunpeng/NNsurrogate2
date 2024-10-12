@@ -28,36 +28,12 @@ from scipy.stats import qmc
 from sklearn.metrics import mean_squared_error
 from scipy.optimize import shgo
 
-
-
-
-# '''
-# general NN-approximated solution 的 convergence to the real solution 的数学研究，看在我们这里是不是也可以 apply
-# 我之前写出来的Found a system of equations that the optimal control law satisfies that is yet too difficult to find the closed-form solution，
-# 看我现在做一些numerical experiment能否satisfy that system of equations
-# '''
-
-'''
-Markov decision if VAR(2): E(V_t(Y_t)| Y_{t-1}, Y_{t-2})，只要有了两个sets of information也是markov
-
-NeuN mean   = 2610.299 percentile = 1778.976 2356.005 3384.931
-all S1 mean = 7849.984 percentile = 7678.176 7846.53 8039.013
-all S2 mean = 303.362 percentile = 241.249 293.528 350.163
-all S3 mean = 2149.611 percentile = 1602.176 2021.846 2543.558
-same p mean = 2560.219 percentile = 1837.079 2285.232 3145.237
-percentile = 1778.976 2356.005 3384.931
-Pr(NN loss money)= 0.999
-mean utility =  1310.78
-print mean utilities!!! dont print capital!! check all calculations!!!
-'''
-
-
 #%% global parameters and quantizer set up
 
 T=5
 num_processes = 4
 
-directory = '/Users/xuyunpeng/Documents/Time-consistent planning/Meeting19/'
+directory = '/Users/xuyunpeng/Documents/yourPath'
 
 dataframes = []
 
@@ -66,7 +42,7 @@ for i in range(1, 6):
     df = pd.read_csv(file_path)
     dataframes.append(df)
 
-number_of_rows = dataframes[0].shape[0]  # Get number of rows from the first dataframe
+number_of_rows = dataframes[0].shape[0] 
 quantize_grid = np.zeros((T, number_of_rows,  num_processes))
 
 for i, df in enumerate(dataframes):
@@ -74,77 +50,15 @@ for i, df in enumerate(dataframes):
 
 weights = np.full((number_of_rows,), 1/number_of_rows)
 
-#%% DO NOT RUN: choosing the best 3 stocks
-
-tickers = [
-    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'NFLX', 'PYPL', 'ADBE',
-    'INTC', 'CSCO', 'PEP', 'KO', 'DIS', 'V', 'MA', 'JPM', 'BAC', 'WMT',
-    'HD', 'PG', 'VZ', 'PFE', 'MRK', 'ABBV', 'T', 'XOM', 'CVX', 'GOVT'
-]
-start_date = '2020-03-01'
-end_date = '2023-03-01'
-
-data = yf.download(tickers, start=start_date, end=end_date, interval='1mo', progress=False)['Adj Close']
-
-returns = data.pct_change().dropna()
-
-# Calculate average return rate and variance
-average_return_rate = returns.mean()
-variance_return_rate = returns.var()
-
-# Create a DataFrame to hold the average return rate and variance
-results = pd.DataFrame({
-    "Average Return Rate": average_return_rate,
-    "Variance Return Rate": variance_return_rate
-})
-
-# Sort by average return rate and variance
-sorted_by_avg_return = results.sort_values(by='Average Return Rate', ascending=False)
-sorted_by_variance_return = results.sort_values(by='Variance Return Rate', ascending=False)
-
-# Identify stocks with high average return and high variance
-high_avg_high_var_stock = sorted_by_avg_return.head(10).sort_values(by='Variance Return Rate', ascending=False).head(5)
-
-# Identify stocks with low average return and low variance
-low_avg_low_var_stock = sorted_by_avg_return.tail(10).sort_values(by='Variance Return Rate', ascending=True).head(5)
-
-# Function to identify if a stock maintains an increasing or constant trend
-def increasing_or_constant_trend(stock_prices, threshold=0.05):
-    sma_short = stock_prices.rolling(window=3).mean()
-    sma_long = stock_prices.rolling(window=6).mean()
-    trend_condition = (sma_short[-1] >= sma_long[-1]) or (stock_prices.std() < threshold)
-    return trend_condition
-
-# Screening for increasing or constant trends
-def filter_trending_stocks(stocks, data):
-    trending_stocks = []
-    for stock in stocks.index:
-        if increasing_or_constant_trend(data[stock]):
-            trending_stocks.append(stock)
-    return trending_stocks
-
-# Find stocks with high variance, high mean, and also trending
-high_avg_high_var_with_trend = filter_trending_stocks(high_avg_high_var_stock, data)
-
-# Find stocks with low variance, low mean, and also trending
-low_avg_low_var_with_trend = filter_trending_stocks(low_avg_low_var_stock, data)
-
-print("Stocks with high variance, high mean, and increasing/constant trend:", high_avg_high_var_with_trend)
-print("Stocks with low variance, low mean, and increasing/constant trend:", low_avg_low_var_with_trend)
-
 
 #%% claims data
 
-# heart disease https://data.cdc.gov/NCHS/Monthly-Provisional-Counts-of-Deaths-by-Select-Cau/9dzk-mvmi/about_data
-# click Actions, API, download file, 
-# assume the company's policy portfolio includes 1% of total heart disease death in US, death benefit is 100,000 per death, inflation adjusted. 
 print('unit is per thousand for monetary amounts')
 # policies inforce since 2020-03-01
-database = pd.read_csv('/Users/xuyunpeng/Documents/Time-consistent planning/Meeting20/Monthly_Provisional_Counts_of_Deaths_by_Select_Causes__2020-2023_20240826.csv')
+database = pd.read_csv('/Users/xuyunpeng/Documents/yourPath/Monthly_Provisional_Counts_of_Deaths_by_Select_Causes__2020-2023_20240826.csv')
 selected_data = database.iloc[1:40, 6] #from 1/1/20 to 4/1/23
 
 num_death = selected_data*0.01 
-'lambda * E(X) 换成 0.001*selected_data, premium就会变少'
 inflation_rates = {
     2020: [0.001, 0.001, 0.002, -0.004, -0.008, -0.001, 0.006, 0.006, 0.004, 0.000, 0.002, 0.004],
     2021: [0.003, 0.004, 0.006, 0.008, 0.006, 0.009, 0.005, 0.003, 0.004, 0.009, 0.008, 0.005],
@@ -169,16 +83,9 @@ d_ln_L = np.diff(ln_L)
 
 initial_capital = initial_benefit*1000
 
-'''
-US insurer life average equity, average life insurance benefit
-check inflation_rates annualised?
-assume base date is 31/3/2023
-'''
 
 #%% claim and stock price stack into 1 df and find VAR model
 
-# top3 = ['NFLX', 'REM', 'KO']
-# top3 = ['PG', 'REM', 'AGG']
 top3 = ['PFE', 'REM', 'BND']
 
 S = yf.download(top3, start='2020-01-01', end='2023-04-01', interval='1mo', progress=False)['Adj Close']
@@ -198,10 +105,6 @@ toCSV.to_csv('stock_differences.csv', index=True)
 data = pd.read_csv('stock_differences.csv', index_col=0)
 
 data = data.apply(pd.to_numeric)
-
-top3 = top3#[::-1]
-print(top3)
-
 
 model = VAR(data)
 results = model.fit(maxlags=2)
@@ -281,7 +184,6 @@ last_R_test = np.array([d_ln_S1_minus1, d_ln_S2_minus1, d_ln_S3_minus1, d_ln_L_m
 
 noise_vali, d_ln_S1_vali, d_ln_S2_vali, d_ln_S3_vali, d_ln_L_vali = VARMA_sim1( current_R_test, last_R_test, Sigma, numSim, T)
 noise_test, d_ln_S1_test, d_ln_S2_test, d_ln_S3_test, d_ln_L_test = VARMA_sim1( current_R_test, last_R_test,  Sigma, numSim, T)
-
 
 
 #%% prices simulation plot
@@ -639,102 +541,12 @@ def V_t(c, u,
                 
     return V_t
 
-#%% training setup 
-
-def check_0point5(
-                  d_ln_S1t, d_ln_S2t, d_ln_S3t, d_ln_Lt,
-                  d_ln_S1t_minus1, d_ln_S2t_minus1, d_ln_S3t_minus1, d_ln_Lt_minus1,
-                  S1t, S2t, S3t, Lt, 
-                  t, quantizer):
-    
-    d_ln_Xt_vec = np.array([d_ln_S1t, d_ln_S2t, d_ln_S3t, d_ln_Lt]) 
-    d_ln_Xt_minus1_vec = np.array([d_ln_S1t_minus1, d_ln_S2t_minus1, d_ln_S3t_minus1, d_ln_Lt_minus1]) 
-    # noise_t_vec = np.array([noise_R1, noise_R2, noise_R3, noise_L])    
-
-    S1_t_plus1 = np.exp(
-                        np.log(S1t) + (mu[0] + np.dot(Phi1, d_ln_Xt_vec-mu)[0] + np.dot(Phi2, d_ln_Xt_minus1_vec-mu)[0] #+ dotProduc(matrix_beta,noise_t_vec)[0]
-                         + quantizer[t][:, 0])
-                        )
-    S2_t_plus1 = np.exp(
-                        np.log(S1t) + (mu[1] + np.dot(Phi1, d_ln_Xt_vec-mu)[1] + np.dot(Phi2, d_ln_Xt_minus1_vec-mu)[1] #+ dotProduc(matrix_beta,noise_t_vec)[0]
-                         + quantizer[t][:, 1])
-                        )
-    S3_t_plus1 = np.exp(
-                        np.log(S1t) + (mu[2] + np.dot(Phi1, d_ln_Xt_vec-mu)[2] + np.dot(Phi2, d_ln_Xt_minus1_vec-mu)[2] #+ dotProduc(matrix_beta,noise_t_vec)[0]
-                         + quantizer[t][:, 2])
-                        )
-    
-    R1_t_plus1 = S1_t_plus1/S1t
-    R2_t_plus1 = S2_t_plus1/S1t
-    R3_t_plus1 = S3_t_plus1/S1t
-    
-    Er1, Er2, Er3 = np.sum(R1_t_plus1 * weights), np.sum(R2_t_plus1 * weights), np.sum(R3_t_plus1 * weights), 
-    
-    return Er1, Er2, Er3 
-
-def search_entries(check_minimise, alpha):
-    result_entries = []
-
-    for j, inner_dict in check_minimise.items():
-        for i, values in inner_dict.items():
-            # Check how many of the first three entries are less than 0.5 * alpha
-            count_below_threshold = sum(value < 1.1 and value > -1.000 for value in values[:3])
-            
-            # If at least two are below the threshold, store selected values
-            if count_below_threshold >= 2:
-                # Collect the first three and last three elements
-                selected_values = values[:3] + values[-3:]
-                formatted_elements = [f"{value:.4f}" for value in selected_values]
-                result_entries.append(formatted_elements)
-
-    # Calculate the additional feature
-    matching_count = 0
-
-    for elements in result_entries:
-        first_three = [float(val) for val in elements[:3]]
-        last_three = [float(val) for val in elements[-3:]]
-
-        # Find indexes of the two largest values in first_three and last_three
-        first_three_largest = sorted(range(3), key=lambda x: first_three[x], reverse=True)[:2]
-        last_three_largest = sorted(range(3), key=lambda x: last_three[x], reverse=True)[:2]
-
-        # Check if the indices of the largest values correspond
-        if set(first_three_largest) == set(last_three_largest):
-            matching_count += 1
-
-    # Calculate the ratio
-    ratio = matching_count / len(result_entries) if result_entries else 0
-
-    return result_entries, ratio
-
 #%% train
 
 div_upper = 0.05
 
 def custom_activation(x):
     return tf.nn.sigmoid(x)*div_upper
-
-# def construct_grid():
-#     grid = []
-#     step = 0.1
-
-#     # Iterate over u[0], u[1], and u[2] in steps of 0.001
-#     for u0 in np.arange(0, 1+step, step):
-#         for u1 in np.arange(0, 1+step - u0, step):
-#             u2 = 1 - u0 - u1
-
-#             # Ensure u2 is non-negative (implicitly ensures u0 + u1 <= 1)
-#             if u2 >= 0:
-#                 # Iterate over u[3] in steps of 0.001, from 0 to 0.005
-#                 for u3 in np.arange(0, 0.0051, 0.001):
-#                     grid.append([round(u0, 3), round(u1, 3), round(u2, 3), round(u3, 3)])
-
-    # return grid
-
-# grid = construct_grid()
-
-# Optional: Convert the grid to a DataFrame for easy inspection
-# grid_df = pd.DataFrame(grid, columns=["u[0]", "u[1]", "u[2]", "u[3]"])
 
 def BuildAndTrainModel(c1_train, #gamma_train, 
                        d_ln_S1t_train, d_ln_S2t_train, d_ln_S3t_train, d_ln_Lt_train,
@@ -791,40 +603,12 @@ def BuildAndTrainModel(c1_train, #gamma_train,
     
     for j in range(T-1, 0, -1): # j is equivalent to t
     
-        # input_train = np.concatenate((
-        #                                 c1_train.reshape(-1,1),
-        #                                 # gamma_train.reshape(-1,1), 
-                                        
-        #                                 d_ln_S1t_train.reshape(-1,1), 
-        #                                 d_ln_S2t_train.reshape(-1,1), 
-        #                                 d_ln_S3t_train.reshape(-1,1), 
-        #                                 d_ln_Lt_train.reshape(-1,1), 
-                                        
-        #                                 d_ln_S1t_minus1_train.reshape(-1,1), 
-        #                                 d_ln_S2t_minus1_train.reshape(-1,1), 
-        #                                 d_ln_S3t_minus1_train.reshape(-1,1), 
-        #                                 d_ln_Lt_minus1_train.reshape(-1,1), 
-                                        
-        #                                 S1_t_train.reshape(-1,1), 
-        #                                 S2_t_train.reshape(-1,1), 
-        #                                 S3_t_train.reshape(-1,1), 
-        #                                 L_t_train.reshape(-1,1),
-
-        #                                 ), axis = 1) 
-        
-        '''how about we construct something like d_ln_S1t_train[t], 
-            to replace d_ln_S1t_train by d_ln_S1t_train[t],  
-            to replace d_ln_S1t_minus1_train by d_ln_S1t_train[t-1],  
-            because of line77 in the draft
-        '''
-        
         input_scaler = MinMaxScaler(feature_range = (0,1))
         input_scaler.fit(input_train)
         input_train_scaled = input_scaler.transform(input_train)
                     
         start_i = time.perf_counter()
         print("Time step " + str(j))
-        check[j] = {}
 
         for i in range(numTrain):
             
@@ -842,71 +626,26 @@ def BuildAndTrainModel(c1_train, #gamma_train,
                                 nnsolver_valuefun[j+1].get_weights(),
                                 input_scaler, output_scaler, quantizer, j
                                 )
-                        return -1*V #+ np.abs(np.sum(u) - 1)*initial_capital
-
-                            
-# this output scaler valufun is where DP is incorporated, every previous period optimizaton takes the numeric 
-# value of the last value function
+                        return -1*V 
 
             else:
 
                 def f_i(u):
                         V = V_T_minus1(
-                                       c1_train[i], #gamma_train[i],
+                                       c1_train[i], 
                                        u,
                                        d_ln_S1t_train[i], d_ln_S2t_train[i], d_ln_S3t_train[i], d_ln_Lt_train[i],
                                        d_ln_S1t_minus1_train[i], d_ln_S2t_minus1_train[i], d_ln_S3t_minus1_train[i], d_ln_Lt_minus1_train[i], 
                                        S1_t_train[i], S2_t_train[i], S3_t_train[i], L_t_train[i],
                                        quantizer, j
                                        )                        
-                        return -1*V #+ np.abs(np.sum(u) - 1)*initial_capital
-            
-            # u_hat = None
-            # v_hat = -np.inf
-            # grid = [ 
-            #     [1, 0, 0.005],
-            #     [1, 0, 0.004],
-            #     [1, 0, 0.003],
-            #     [1, 0, 0.002],
-            #     [1, 0, 0.001],
-            #     [1, 0, 0.000],
-            #     [0, 1, 0.005],
-            #     [0, 1, 0.004],
-            #     [0, 1, 0.003],
-            #     [0, 1, 0.002],
-            #     [0, 1, 0.001],
-            #     [0, 1, 0.000],
-            #     [0, 0, 0.005],
-            #     [0, 0, 0.004],
-            #     [0, 0, 0.003],
-            #     [0, 0, 0.002],
-            #     [0, 0, 0.001],
-            #     [0, 0, 0.000],
-            #     ]
-            # for u in grid:
-            #     value = f_i(u)
-            #     if value > v_hat:
-            #         v_hat = value
-            #         u_hat = u
-            
-            # bounds = [(0, 1), (0, 1), (0, div_upper)]
-            # result_global = shgo(f_i, bounds, 
-            #                       )
-            # u_hat = result_global.x
-            # v_hat = result_global.fun*-1
+                        return -1*V 
             
             bounds = [(0, 1), (0, 1), (0, 0.005)]
             guess_u = np.array([1/3,1/3,0.003])
             optio = {
-                        # 'disp': True,
-                        'maxiter': 10000,
-                        # 'ftol': 1e-8,  # Function value tolerance
-                        # 'gtol': 1e-8,   # Gradient tolerance
-                        # 'eps': 1e-6, 
-                        # 'gtol': 1e-5,
-                        # 'maxfun': 20000
+                        'maxiter': 10000
                     }
-            # Minimize the negative of the function to maximize it
             result = minimize(f_i, guess_u, method='L-BFGS-B', options=optio, bounds=bounds)
             if not result.success:
                 print("Optimization failed:", result.message)
@@ -916,13 +655,6 @@ def BuildAndTrainModel(c1_train, #gamma_train,
                 
             v_hat = result.fun*-1
             u_hat = result.x
-                
-            temp_r1, temp_r2, temp_r3 = check_0point5(
-                                                      d_ln_S1t_train[i], d_ln_S2t_train[i], d_ln_S3t_train[i], d_ln_Lt_train[i],
-                                                      d_ln_S1t_minus1_train[i], d_ln_S2t_minus1_train[i], d_ln_S3t_minus1_train[i], d_ln_Lt_minus1_train[i], 
-                                                      S1_t_train[i], S2_t_train[i], S3_t_train[i], L_t_train[i], j, quantizer
-                                                      )
-            check[j][i] = [u_hat[0], u_hat[1], 1-u_hat[0]-u_hat[1], u_hat[2], v_hat, temp_r1, temp_r2, temp_r3]
             
             proportion_train[0][j][i], proportion_train[1][j][i], proportion_train[2][j][i] = u_hat[0], u_hat[1], 1-u_hat[0]-u_hat[1]
             dividend_train[j][i] = u_hat[-1] 
@@ -953,7 +685,6 @@ def BuildAndTrainModel(c1_train, #gamma_train,
         end_i = time.perf_counter()
         print("     train value function done: " + str(round((end_i-start_i)/60,2)) + " min.")     
         
-        # Value Function Neural Network (nnsolver_valuefun)
         valuefun_train_scaled_pred = nnsolver_valuefun[j].predict(input_train_scaled)
         mse_valuefun = mean_squared_error(valuefun_train_scaled, valuefun_train_scaled_pred)
         print(f"     MSE for value function: {mse_valuefun}")
@@ -977,11 +708,9 @@ def BuildAndTrainModel(c1_train, #gamma_train,
         end_i = time.perf_counter()
         print("     train proportion done: " + str(round((end_i-start_i)/60,2)) + " min.")
         
-        # Proportion Neural Network (nnsolver_proportion)
         proportion_train_pred = nnsolver_proportion[j].predict(input_train_scaled)
         mse_proportion = mean_squared_error(proportion_train[:, j, :].T, proportion_train_pred)
         print(f"     MSE for proportion: {mse_proportion}")
-        
         
         start_i = time.perf_counter()   
 
@@ -1003,7 +732,6 @@ def BuildAndTrainModel(c1_train, #gamma_train,
         end_i = time.perf_counter()
         print("     train dividend done: " + str(round((end_i-start_i)/60,2)) + " min.")
         
-        # Dividend Neural Network (nnsolver_dividend)
         dividend_train_pred = nnsolver_dividend[j].predict(input_train_scaled)
         mse_dividend = mean_squared_error(dividend_train[j].reshape(-1, 1), dividend_train_pred)
         print(f"     MSE for dividend: {mse_dividend}")
@@ -1013,12 +741,7 @@ def BuildAndTrainModel(c1_train, #gamma_train,
 
     print("Duration: " + str(duration) + " min.")
     
-    return nnsolver_proportion, nnsolver_dividend, nnsolver_valuefun, input_scaler, output_scaler_valuefun, check
-
-'print出来mean square error，把这些expected utility都存下来'
-'做validation：做一个validation data set（可以是simulation），把由不同的hyper parameter的train出来的model放进去（相当于现在的test的步骤），比较expected utility'
-'再用由最大expected utility的validation的hyper parameter的model去test' 
-'我们假设simulation的data是真正的不知道的未来的data。我们假设我们有一个对未来的预估，即，validation dataset，用最好的validation的hyper parameter去test。'
+    return nnsolver_proportion, nnsolver_dividend, nnsolver_valuefun, input_scaler, output_scaler_valuefun
 
 #%% Train
 
@@ -1033,37 +756,37 @@ nnsolver_proportion, nnsolver_dividend, nnsolver_valuefun, in_scaler, out_scaler
 
 #%% save locally
 
-np.save('/Users/xuyunpeng/Documents/Time-consistent planning/Meeting21/models21/nnsolver_proportion_21-3', nnsolver_proportion)
-np.save('/Users/xuyunpeng/Documents/Time-consistent planning/Meeting21/models21/nnsolver_valuefun_21-3', nnsolver_valuefun)
-np.save('/Users/xuyunpeng/Documents/Time-consistent planning/Meeting21/models21/out_scaler_valuefun_21-3', out_scaler_valuefun)
+np.save('/Users/xuyunpeng/Documents/yourPath/nnsolver_proportion_21-3', nnsolver_proportion)
+np.save('/Users/xuyunpeng/Documents/yourPath/nnsolver_valuefun_21-3', nnsolver_valuefun)
+np.save('/Users/xuyunpeng/Documents/yourPath/out_scaler_valuefun_21-3', out_scaler_valuefun)
 
 for j in range(1,T):
     nnsolver_dividend[j].save(f'nnsolver_dividend_21-3_t{j}.keras')
 
-file_path = '/Users/xuyunpeng/Documents/Time-consistent planning/Meeting21/models21/in_scaler_21-3.pkl'
+file_path = '/Users/xuyunpeng/Documents/yourPath/in_scaler_21-3.pkl'
 with open(file_path, 'wb') as file:
     pickle.dump(in_scaler, file)
 
 
 #%% retrieve models
 
-print('remember to change working directory, otherwise File not found: filepath=nnsolver_dividend_21-1_t1.keras.')
+print('remember to change working directory, otherwise File not found')
 
-loaded_proportion = np.load('/Users/xuyunpeng/Documents/Time-consistent planning/Meeting21/models21/nnsolver_proportion_21-1.npy', allow_pickle=True)
+loaded_proportion = np.load('/Users/xuyunpeng/Documents/yourPath/nnsolver_proportion_21-1.npy', allow_pickle=True)
 
 loaded_dividend = []
 for j in range(1,T):
     loaded_dividend.append(load_model(f'nnsolver_dividend_21-1_t{j}.keras', custom_objects={'custom_activation': custom_activation}))
 loaded_dividend = [None] + loaded_dividend + [None]
     
-file_path = '/Users/xuyunpeng/Documents/Time-consistent planning/Meeting21/models21/in_scaler_21-1.pkl'
+file_path = '/Users/xuyunpeng/Documents/yourPath/in_scaler_21-1.pkl'
 with open(file_path, 'rb') as file:
     loaded_in_scaler = pickle.load(file)
     
 
 #%% test one path
 
-def IndividualTest(c0, #gamma, 
+def IndividualTest(c0,
                    nnsolver_proportion, nnsolver_dividend, path, input_scaler, T,
                    d_ln_S1t, d_ln_S2t, d_ln_S3t, d_ln_Lt,
                    d_ln_S1t_minus1, d_ln_S2t_minus1, d_ln_S3t_minus1, d_ln_Lt_minus1,
@@ -1089,7 +812,7 @@ def IndividualTest(c0, #gamma,
                 S3_t = np.exp((ln_S3_0) + sum((d_ln_S3t[j][path]) for j in range(1, t)))
                 L_t = np.exp((ln_L_0) + sum((d_ln_Lt[j][path]) for j in range(1, t)))
             
-                u_t[i] = NN_Surrogate(samples[0][4][t], #gamma, 
+                u_t[i] = NN_Surrogate(samples[0][4][t],  
                                              
                                              d_ln_S1t[t][path], 
                                              d_ln_S2t[t][path], 
@@ -1116,14 +839,7 @@ def IndividualTest(c0, #gamma,
             u_t[1] = u_t[1]/sum(u_t[i] for i in range(3))
             u_t[2] = u_t[2]/sum(u_t[i] for i in range(3))
             
-            # arr = np.array([u_t[0], u_t[1], u_t[2]])
-            # max_index = np.argmax(arr)
-            # u_t = np.zeros_like(arr)
-            # u_t[max_index] = 1
-                
-            # for nnsolver_dividend, the index starts from 0, to 3. 
-            # j = t-1
-            samples[0][3][t] = NN_Surrogate(samples[0][4][t], #gamma, 
+            samples[0][3][t] = NN_Surrogate(samples[0][4][t], 
                                              
                                               d_ln_S1t[t][path], 
                                               d_ln_S2t[t][path], 
@@ -1202,14 +918,13 @@ def IndividualTest(c0, #gamma,
                                 d_ln_Lt[j][path] for j in range(1, t))
                                 ) for t in range(1, T)
                             ) + (T-1)*y 
-    '对比只把钱放进bond里，如果这个portfolio value都很高的话那很可能是保费太高了'
     if samples[0][4][T-1] < minimum_capital or samples[0][4][T-1] < samples[1][4][T-1] or samples[0][4][T-1] < samples[2][4][T-1] or samples[0][4][T-1] < samples[3][4][T-1] or samples[0][4][T-1] < samples[4][4][T-1] :
         loss_count = 1
         
     return samples, loss_count
 
 
-def RunTests(c0, #gamma, 
+def RunTests(c0, 
              nnsolver_proportion, nnsolver_dividend, input_scaler, T, numSim,
                     d_ln_R1t, d_ln_R2t, d_ln_R3t, d_ln_Lt,
                     d_ln_R1t_minus1, d_ln_R2t_minus1, d_ln_R3t_minus1, d_ln_Lt_minus1,
@@ -1220,7 +935,7 @@ def RunTests(c0, #gamma,
 
     for path in range(1,numSim):
         
-        samples, loss_coun = IndividualTest(c0, #gamma, 
+        samples, loss_coun = IndividualTest(c0, 
                                             nnsolver_proportion, nnsolver_dividend, path, input_scaler, T,
                                             d_ln_R1t, d_ln_R2t, d_ln_R3t, d_ln_Lt,
                                             d_ln_R1t_minus1, d_ln_R2t_minus1, d_ln_R3t_minus1, d_ln_Lt_minus1,
@@ -1312,14 +1027,7 @@ plt.show()
 print('Pr(NN loss money)=',total_loss_count_vali/numSim)
 
 
-print('print mean utilities!!! dont print capital!! check all calculations!!!')
-
-# print('percentage: number of times the sum of control is too far away from 1 is ', total_counter/numSim)
-
-
 #%% print some results in detail
-
-
 
 some_paths = [random.randint(1, numSim-1) for _ in range(5)]
 
@@ -1333,15 +1041,6 @@ for some in range(1,len(some_paths)):
              f'C_t={t} :', round(results_vali[some_paths[some]][0][4][t],2), 
              round(U(results_vali[some_paths[some]][0][4][t]),2)
               )
-
-#%% check minimise
-
-# Example usage:
-alpha = 1.1  # or another value close to 1
-entries, ratio = search_entries(check_minimise, alpha)
-# print("Entries:\n", entries)
-print("Ratio of matching indices:", ratio)
-
 
 #%%
 
@@ -1375,49 +1074,6 @@ plt.xlabel('Value')
 plt.ylabel('Frequency')
 plt.grid(True)
 plt.show()
-
-
-'universal approx. theorem, so dont need to assume some theta hat?'
-
-#%% Test results
-
-initial_capital = 100000
-
-results_test, total_loss_count_test = RunTests(initial_capital, np.array(gamma), np.array(v), np.array(y), 
-                                     
-                    # loaded_proportion, loaded_dividend, loaded_in_scaler, 
-                    nnsolver_proportion, nnsolver_dividend, in_scaler,
-                   
-                   T, numSim,
-                    np.array(a['11']), np.array(a['12']), np.array(a['13']), np.array(a['14']), 
-                    np.array(a['21']), np.array(a['22']), np.array(a['23']), np.array(a['24']), 
-                    np.array(a['31']), np.array(a['32']), np.array(a['33']), np.array(a['34']), 
-                    np.array(a['41']), np.array(a['42']), np.array(a['43']), np.array(a['44']), 
-                    np.array(mu['1']), np.array(mu['2']), np.array(mu['3']), np.array(mu['4']), 
-                    # np.array(dL_base),
-                    
-                    d_ln_R1_test, d_ln_R2_test, d_ln_R3_test, d_ln_L_test
-                   )
-
-capit_NN = []
-for path in results_test:
-    capit_NN.append(results_vali[path][0][4][T])
-
-mean_NN = round(np.mean(capit_NN),3)
-percentiles = [25, 50, 75]
-NN_percentile = np.percentile(capit_NN, percentiles)
-
-
-print('NeuN mean =', mean_NN)
-
-print('percentile =', round(NN_percentile[0],3), round(NN_percentile[1],3), round(NN_percentile[2],3))
-
-print('Pr(NN loss money)=',total_loss_count_vali/numSim)
-
-print('average return rate monthly = ', (mean_NN/initial_capital)**(1/(T-1))-1)
-# print('percentage: number of times the sum of control is too far away from 1 is ', total_counter/numSim)
-
-
 
 
 
